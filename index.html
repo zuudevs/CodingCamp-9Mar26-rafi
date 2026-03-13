@@ -15,7 +15,45 @@
             <h1 id="greeting-text" class="greeting-text">Good morning</h1>
             <div id="clock" class="clock">12:00 PM</div>
             <div id="date" class="date">Monday, January 1, 2024</div>
+            <div class="name-settings">
+                <input type="text" id="name-input" class="name-input" placeholder="Enter your name (optional)" maxlength="50">
+                <button id="name-save" class="btn-small">Save</button>
+            </div>
         </header>
+
+        <!-- Timer Section -->
+        <section class="timer-section">
+            <h2>Focus Timer</h2>
+            <div id="timer-display" class="timer-display">25:00</div>
+            <div class="timer-controls">
+                <button id="timer-start" class="btn btn-primary">Start</button>
+                <button id="timer-stop" class="btn btn-secondary">Stop</button>
+                <button id="timer-reset" class="btn btn-secondary">Reset</button>
+            </div>
+        </section>
+
+        <!-- To-Do List Section -->
+        <section class="tasks-section">
+            <h2>To-Do List</h2>
+            <div class="task-input-container">
+                <input type="text" id="task-input" class="task-input" placeholder="Add a new task..." maxlength="500">
+                <button id="task-add" class="btn btn-primary">Add Task</button>
+            </div>
+            <div id="task-error" class="error-message"></div>
+            <ul id="task-list" class="task-list"></ul>
+        </section>
+
+        <!-- Quick Links Section -->
+        <section class="links-section">
+            <h2>Quick Links</h2>
+            <div class="link-input-container">
+                <input type="text" id="link-name" class="link-input" placeholder="Link name..." maxlength="50">
+                <input type="text" id="link-url" class="link-input" placeholder="URL (https://...)..." maxlength="500">
+                <button id="link-add" class="btn btn-primary">Add Link</button>
+            </div>
+            <div id="link-error" class="error-message"></div>
+            <div id="link-buttons" class="link-buttons"></div>
+        </section>
     </div>
 </body>
 </html>

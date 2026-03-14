@@ -159,7 +159,7 @@ The project includes comprehensive test files for all features:
 2. Go to repository Settings → Pages
 3. Select the main branch and root folder
 4. Save and wait for deployment
-5. Access your dashboard at `https://yourusername.github.io/productivity-dashboard/`
+5. Access your dashboard at `https://zuudevs.github.io/productivity-dashboard/`
 
 ## Keyboard Shortcuts
 

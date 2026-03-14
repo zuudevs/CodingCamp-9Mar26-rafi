@@ -466,6 +466,9 @@ const TaskManager = {
 
     // Re-render task list
     this.render();
+    
+    // Announce to screen readers
+    this.announceToScreenReader(`Task "${task.text}" marked as ${task.completed ? 'complete' : 'incomplete'}`);
 
     return true;
   },
@@ -534,12 +537,16 @@ const TaskManager = {
    * @returns {boolean} True if successful, false otherwise
    */
   deleteTask(id) {
+    const task = this.tasks.find(t => t.id === id);
     const index = this.tasks.findIndex(t => t.id === id);
     
     if (index === -1) {
       console.error('Task not found:', id);
       return false;
     }
+
+    // Store task text for announcement
+    const taskText = task.text;
 
     // Remove from tasks array
     this.tasks.splice(index, 1);
@@ -549,6 +556,9 @@ const TaskManager = {
 
     // Re-render task list
     this.render();
+    
+    // Announce to screen readers
+    this.announceToScreenReader(`Task "${taskText}" deleted`);
 
     return true;
   },
@@ -585,11 +595,13 @@ const TaskManager = {
       return;
     }
 
-    // Create task items
+    // Use DocumentFragment for batch DOM insertion to minimize reflows
+    const fragment = document.createDocumentFragment();
     this.tasks.forEach(task => {
       const taskItem = this.createTaskElement(task);
-      taskList.appendChild(taskItem);
+      fragment.appendChild(taskItem);
     });
+    taskList.appendChild(fragment);
   },
 
   /**
@@ -611,7 +623,8 @@ const TaskManager = {
     checkbox.type = 'checkbox';
     checkbox.className = 'task-checkbox';
     checkbox.checked = task.completed;
-    checkbox.setAttribute('aria-label', `Mark task as ${task.completed ? 'incomplete' : 'complete'}`);
+    checkbox.id = `task-checkbox-${task.id}`;
+    checkbox.setAttribute('aria-label', `Mark "${task.text}" as ${task.completed ? 'incomplete' : 'complete'}`);
     
     // Checkbox event listener
     checkbox.addEventListener('change', () => {
@@ -622,17 +635,28 @@ const TaskManager = {
     const taskText = document.createElement('span');
     taskText.className = 'task-text';
     taskText.textContent = task.text;
+    taskText.setAttribute('role', 'button');
+    taskText.setAttribute('tabindex', '0');
+    taskText.setAttribute('aria-label', `Edit task: ${task.text}`);
     
     // Make task text clickable for editing
     taskText.addEventListener('click', () => {
       this.enterEditMode(task.id, taskText);
+    });
+    
+    // Make task text keyboard accessible
+    taskText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.enterEditMode(task.id, taskText);
+      }
     });
 
     // Create delete button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'task-delete';
     deleteBtn.textContent = '×';
-    deleteBtn.setAttribute('aria-label', 'Delete task');
+    deleteBtn.setAttribute('aria-label', `Delete task: ${task.text}`);
     
     // Delete button event listener
     deleteBtn.addEventListener('click', () => {
@@ -673,23 +697,41 @@ const TaskManager = {
     input.className = 'task-edit-input';
     input.value = task.text;
     input.maxLength = 500;
+    input.setAttribute('aria-label', `Edit task: ${task.text}`);
 
     // Replace text span with input field
     textElement.replaceWith(input);
     input.focus();
     input.select(); // Select all text for easy replacement
 
+    // Track whether we've already handled the edit to prevent double-firing
+    // (e.g., Enter key triggers blur after keydown handler runs)
+    let editHandled = false;
+
     // Save edit handler - called on blur or Enter key
     const saveEdit = () => {
+      if (editHandled) return;
+      editHandled = true;
+
       const newText = input.value;
       const success = this.editTask(taskId, newText);
-      
+
       if (success) {
+        // Clear editing state; render() was already called by editTask
         this.editingTaskId = null;
       } else {
-        // If edit failed (validation error), keep input focused for correction
+        // Validation failed — allow user to correct the input
+        editHandled = false;
         input.focus();
       }
+    };
+
+    // Cancel edit handler - restores original text without saving
+    const cancelEdit = () => {
+      if (editHandled) return;
+      editHandled = true;
+      this.editingTaskId = null;
+      this.render();
     };
 
     // Keyboard shortcuts for edit mode
@@ -698,13 +740,12 @@ const TaskManager = {
         e.preventDefault();
         saveEdit();
       } else if (e.key === 'Escape') {
-        // Cancel edit and restore original text
-        this.editingTaskId = null;
-        this.render();
+        e.preventDefault();
+        cancelEdit();
       }
     });
 
-    // Save when input loses focus
+    // Save when input loses focus (blur fires after keydown, guard prevents double-save)
     input.addEventListener('blur', saveEdit);
   },
 
@@ -738,32 +779,77 @@ const TaskManager = {
   },
 
   /**
-   * Show error message
+   * Show error message and highlight input with error color
    * @param {string} message - The error message to display
    */
   showError(message) {
     const errorElement = document.getElementById('task-error');
-    
+    const taskInput = document.getElementById('task-input');
+
     if (errorElement) {
       errorElement.textContent = message;
       errorElement.style.display = 'block';
-      
+
       // Auto-hide after 3 seconds
-      setTimeout(() => {
+      if (this._errorTimeout) {
+        clearTimeout(this._errorTimeout);
+      }
+      this._errorTimeout = setTimeout(() => {
         this.clearError();
       }, 3000);
+    }
+
+    // Highlight input with error color
+    if (taskInput) {
+      taskInput.classList.add('input-error');
     }
   },
 
   /**
-   * Clear error message
+   * Clear error message and remove input error highlight
    */
   clearError() {
     const errorElement = document.getElementById('task-error');
-    
+    const taskInput = document.getElementById('task-input');
+
     if (errorElement) {
       errorElement.textContent = '';
       errorElement.style.display = 'none';
+    }
+
+    // Remove error highlight from input
+    if (taskInput) {
+      taskInput.classList.remove('input-error');
+    }
+
+    if (this._errorTimeout) {
+      clearTimeout(this._errorTimeout);
+      this._errorTimeout = null;
+    }
+  },
+
+  /**
+   * Announce message to screen readers using ARIA live region
+   * @param {string} message - The message to announce
+   */
+  announceToScreenReader(message) {
+    const errorElement = document.getElementById('task-error');
+    
+    if (errorElement) {
+      // Temporarily use the error element as a live region for announcements
+      const originalDisplay = errorElement.style.display;
+      const originalText = errorElement.textContent;
+      
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      errorElement.style.color = 'var(--text-primary)'; // Use normal text color for non-error announcements
+      
+      // Clear after 2 seconds
+      setTimeout(() => {
+        errorElement.textContent = originalText;
+        errorElement.style.display = originalDisplay;
+        errorElement.style.color = 'var(--danger-color)'; // Reset to error color
+      }, 2000);
     }
   }
 };
@@ -1004,6 +1090,7 @@ const LinksManager = {
     const wrapper = document.createElement('div');
     wrapper.className = 'link-item';
     wrapper.dataset.linkId = link.id;
+    wrapper.setAttribute('role', 'listitem');
 
     // Create link button that opens URL in new tab
     const linkBtn = document.createElement('button');
@@ -1266,6 +1353,9 @@ function setupGlobalEventListeners() {
   // Set up custom name event listeners
   setupNameEventListeners();
   
+  // Set up keyboard shortcuts
+  setupKeyboardShortcuts();
+  
   // Handle storage events for cross-tab synchronization
   // This allows changes in one tab to be reflected in other open tabs
   window.addEventListener('storage', (e) => {
@@ -1313,6 +1403,115 @@ function setupNameEventListeners() {
       }
     });
   }
+  
+  // Set up keyboard help button
+  const keyboardHelpBtn = document.getElementById('keyboard-help');
+  if (keyboardHelpBtn) {
+    keyboardHelpBtn.addEventListener('click', () => {
+      showKeyboardShortcutsHelp();
+    });
+  }
+}
+
+/**
+ * Set up keyboard shortcuts for improved accessibility
+ * Provides quick access to common actions via keyboard
+ */
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Ignore shortcuts when typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      // Allow Escape key to work in input fields
+      if (e.key === 'Escape') {
+        e.target.blur(); // Remove focus from input
+      }
+      return;
+    }
+
+    // Keyboard shortcuts (using Ctrl/Cmd + key combinations)
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+
+    // Ctrl/Cmd + T: Focus task input
+    if (modifierKey && e.key === 't') {
+      e.preventDefault();
+      const taskInput = document.getElementById('task-input');
+      if (taskInput) {
+        taskInput.focus();
+      }
+    }
+
+    // Ctrl/Cmd + L: Focus link name input
+    if (modifierKey && e.key === 'l') {
+      e.preventDefault();
+      const linkNameInput = document.getElementById('link-name');
+      if (linkNameInput) {
+        linkNameInput.focus();
+      }
+    }
+
+    // Ctrl/Cmd + D: Toggle theme
+    if (modifierKey && e.key === 'd') {
+      e.preventDefault();
+      ThemeManager.toggle();
+    }
+
+    // Space: Start/Stop timer (when not in input)
+    if (e.key === ' ' && !e.target.closest('button')) {
+      e.preventDefault();
+      if (TimerManager.isRunning) {
+        TimerManager.stop();
+      } else {
+        TimerManager.start();
+      }
+    }
+
+    // R key: Reset timer (when not in input)
+    if (e.key === 'r' && !modifierKey) {
+      e.preventDefault();
+      TimerManager.reset();
+    }
+
+    // Escape: Clear focus from current element
+    if (e.key === 'Escape') {
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+    }
+
+    // ? key: Show keyboard shortcuts help
+    if (e.key === '?' && !modifierKey) {
+      e.preventDefault();
+      showKeyboardShortcutsHelp();
+    }
+  });
+}
+
+/**
+ * Show keyboard shortcuts help dialog
+ * Displays available keyboard shortcuts to the user
+ */
+function showKeyboardShortcutsHelp() {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const modKey = isMac ? 'Cmd' : 'Ctrl';
+  
+  const shortcuts = `
+Keyboard Shortcuts:
+
+${modKey} + T: Focus task input
+${modKey} + L: Focus link input
+${modKey} + D: Toggle dark/light theme
+Space: Start/Stop timer
+R: Reset timer
+Tab: Navigate between elements
+Enter: Activate buttons and submit forms
+Escape: Cancel editing or clear focus
+?: Show this help
+
+All interactive elements are keyboard accessible using Tab and Enter keys.
+  `.trim();
+
+  alert(shortcuts);
 }
 
 /**
@@ -1393,16 +1592,31 @@ const TimerManager = {
     const displayElement = document.getElementById('timer-display');
     if (displayElement) {
       displayElement.textContent = this.formatTime(this.timeRemaining);
+      
+      // Update aria-live region when timer is running for screen reader announcements
+      // Only announce at specific intervals to avoid overwhelming screen readers
+      if (this.isRunning && (this.timeRemaining === 300 || this.timeRemaining === 60 || this.timeRemaining === 30 || this.timeRemaining === 10)) {
+        displayElement.setAttribute('aria-live', 'polite');
+      } else if (!this.isRunning) {
+        displayElement.setAttribute('aria-live', 'off');
+      }
     }
   },
 
   /**
    * Start the timer countdown
    * Uses timestamp-based calculation for accuracy
+   * Requests browser notification permission proactively
    */
   start() {
     if (this.isRunning) {
       return; // Already running, prevent duplicate intervals
+    }
+
+    // Request notification permission proactively when timer starts
+    // so the user can grant it before the timer completes
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
 
     // Store start timestamp for accurate elapsed time calculation
@@ -1483,20 +1697,62 @@ const TimerManager = {
 
   /**
    * Handle timer completion
-   * Shows notification and resets timer
+   * Shows custom modal notification and browser notification if permitted
    */
   handleCompletion() {
     // Stop the timer
     this.stop();
 
+    // Flash the timer display to draw attention
+    const displayElement = document.getElementById('timer-display');
+    if (displayElement) {
+      displayElement.classList.add('completed');
+      setTimeout(() => displayElement.classList.remove('completed'), 1900);
+    }
+
     // Show browser notification if permission granted
     this.showNotification();
 
-    // Visual alert as fallback
-    alert('Timer completed! Time for a break.');
+    // Show custom modal (primary visual notification)
+    this.showCompletionModal();
+  },
 
-    // Reset timer for next session
-    this.reset();
+  /**
+   * Show the custom timer completion modal
+   * Traps focus inside the modal for accessibility
+   */
+  showCompletionModal() {
+    const modal = document.getElementById('timer-modal');
+    const closeBtn = document.getElementById('timer-modal-close');
+
+    if (!modal) return;
+
+    modal.hidden = false;
+
+    // Focus the close button for keyboard accessibility
+    if (closeBtn) {
+      closeBtn.focus();
+    }
+
+    // Close modal and reset timer when button clicked
+    const handleClose = () => {
+      modal.hidden = true;
+      closeBtn.removeEventListener('click', handleClose);
+      document.removeEventListener('keydown', handleEscape);
+      this.reset();
+    };
+
+    // Allow Escape key to dismiss the modal
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', handleClose);
+    }
+    document.addEventListener('keydown', handleEscape);
   },
 
   /**

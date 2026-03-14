@@ -4,56 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Productivity Dashboard</title>
+    <meta name="description" content="A productivity dashboard with focus timer, to-do list, and quick links">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
     <script src="js/script.js" defer></script>
 </head>
 <body>
-    <div class="container">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="container" id="main-content">
         <!-- Greeting Section -->
         <header class="greeting-section">
             <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
+            <button id="keyboard-help" class="keyboard-help" aria-label="Show keyboard shortcuts">⌨️</button>
             <h1 id="greeting-text" class="greeting-text">Good morning</h1>
-            <div id="clock" class="clock">12:00 PM</div>
+            <div id="clock" class="clock" role="timer" aria-live="off">12:00 PM</div>
             <div id="date" class="date">Monday, January 1, 2024</div>
             <div class="name-settings">
-                <input type="text" id="name-input" class="name-input" placeholder="Enter your name (optional)" maxlength="50">
-                <button id="name-save" class="btn-small">Save</button>
+                <label for="name-input" class="visually-hidden">Your name</label>
+                <input type="text" id="name-input" class="name-input" placeholder="Enter your name (optional)" maxlength="50" aria-label="Enter your name for personalized greeting">
+                <button id="name-save" class="btn-small" aria-label="Save your name">Save</button>
             </div>
         </header>
 
         <!-- Timer Section -->
-        <section class="timer-section">
-            <h2>Focus Timer</h2>
-            <div id="timer-display" class="timer-display">25:00</div>
-            <div class="timer-controls">
-                <button id="timer-start" class="btn btn-primary">Start</button>
-                <button id="timer-stop" class="btn btn-secondary">Stop</button>
-                <button id="timer-reset" class="btn btn-secondary">Reset</button>
+        <section class="timer-section" aria-labelledby="timer-heading">
+            <h2 id="timer-heading">Focus Timer</h2>
+            <div id="timer-display" class="timer-display" role="timer" aria-live="off" aria-atomic="true" aria-label="Focus timer display">25:00</div>
+            <div class="timer-controls" role="group" aria-label="Timer controls">
+                <button id="timer-start" class="btn btn-primary" aria-label="Start focus timer">Start</button>
+                <button id="timer-stop" class="btn btn-secondary" aria-label="Stop focus timer">Stop</button>
+                <button id="timer-reset" class="btn btn-secondary" aria-label="Reset focus timer to 25 minutes">Reset</button>
             </div>
         </section>
 
         <!-- To-Do List Section -->
-        <section class="tasks-section">
-            <h2>To-Do List</h2>
+        <section class="tasks-section" aria-labelledby="tasks-heading">
+            <h2 id="tasks-heading">To-Do List</h2>
             <div class="task-input-container">
-                <input type="text" id="task-input" class="task-input" placeholder="Add a new task..." maxlength="500">
-                <button id="task-add" class="btn btn-primary">Add Task</button>
+                <label for="task-input" class="visually-hidden">New task</label>
+                <input type="text" id="task-input" class="task-input" placeholder="Add a new task..." maxlength="500" aria-label="Enter a new task">
+                <button id="task-add" class="btn btn-primary" aria-label="Add new task">Add Task</button>
             </div>
-            <div id="task-error" class="error-message"></div>
-            <ul id="task-list" class="task-list"></ul>
+            <div id="task-error" class="error-message" role="alert" aria-live="polite"></div>
+            <ul id="task-list" class="task-list" aria-label="Task list"></ul>
         </section>
 
-        <!-- Quick Links Section -->
-        <section class="links-section">
-            <h2>Quick Links</h2>
-            <div class="link-input-container">
-                <input type="text" id="link-name" class="link-input" placeholder="Link name..." maxlength="50">
-                <input type="text" id="link-url" class="link-input" placeholder="URL (https://...)..." maxlength="500">
-                <button id="link-add" class="btn btn-primary">Add Link</button>
+        <!-- Timer Completion Modal -->
+        <div id="timer-modal" class="timer-modal" role="dialog" aria-modal="true" aria-labelledby="timer-modal-title" aria-describedby="timer-modal-desc" hidden>
+            <div class="timer-modal-content">
+                <div class="timer-modal-icon" aria-hidden="true">⏰</div>
+                <h2 id="timer-modal-title" class="timer-modal-title">Focus Session Complete!</h2>
+                <p id="timer-modal-desc" class="timer-modal-desc">Great work! Time to take a well-deserved break.</p>
+                <button id="timer-modal-close" class="btn btn-primary timer-modal-btn" aria-label="Dismiss timer notification">Start Break</button>
             </div>
-            <div id="link-error" class="error-message"></div>
-            <div id="link-buttons" class="link-buttons"></div>
+        </div>
+
+        <!-- Quick Links Section -->
+        <section class="links-section" aria-labelledby="links-heading">
+            <h2 id="links-heading">Quick Links</h2>
+            <div class="link-input-container">
+                <label for="link-name" class="visually-hidden">Link name</label>
+                <input type="text" id="link-name" class="link-input" placeholder="Link name..." maxlength="50" aria-label="Enter link name">
+                <label for="link-url" class="visually-hidden">Link URL</label>
+                <input type="url" id="link-url" class="link-input" placeholder="URL (https://...)..." maxlength="500" aria-label="Enter link URL">
+                <button id="link-add" class="btn btn-primary" aria-label="Add new link">Add Link</button>
+            </div>
+            <div id="link-error" class="error-message" role="alert" aria-live="polite"></div>
+            <div id="link-buttons" class="link-buttons" role="list" aria-label="Quick links"></div>
         </section>
     </div>
 </body>

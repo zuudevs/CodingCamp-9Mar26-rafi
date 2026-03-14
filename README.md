@@ -37,8 +37,8 @@ A clean, minimal client-side productivity web application that helps you manage 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/productivity-dashboard.git
-   cd productivity-dashboard
+   git clone https://github.com/zuudevs/CodingCamp-9Mar26-rafi.git
+   cd CodingCamp-9Mar26-rafi
    ```
 
 2. **Open the application**
@@ -159,7 +159,7 @@ The project includes comprehensive test files for all features:
 2. Go to repository Settings → Pages
 3. Select the main branch and root folder
 4. Save and wait for deployment
-5. Access your dashboard at `https://zuudevs.github.io/productivity-dashboard/](https://zuudevs.github.io/CodingCamp-9Mar26-rafi/`
+5. Access your dashboard at `https://zuudevs.github.io/CodingCamp-9Mar26-rafi/`
 6. 
 
 ## Keyboard Shortcuts
